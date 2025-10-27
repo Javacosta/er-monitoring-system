@@ -1,0 +1,38 @@
+# Use a standard Ubuntu base image
+FROM ubuntu:22.04
+
+# Install all necessary build and run-time tools
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    cmake \
+    wget
+
+# Set the working directory
+WORKDIR /app
+
+# Clone the source code
+RUN git clone https://github.com/ggerganov/llama.cpp.git .
+# Create the build directory and compile the project
+WORKDIR /app/build
+RUN cmake .. -DLLAMA_CURL=OFF
+RUN cmake --build .
+# Reset the working directory back to the app root
+WORKDIR /app
+
+# Copy your local front-end files into the container
+COPY ./public ./public
+
+# --- OPTIMIZATION ---
+# Download the model directly into the image
+# This makes the build portable and usable in CI/CD.
+RUN mkdir /models && \
+    wget -O /models/Phi-3-mini-4k-instruct-q4.gguf \
+    "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf"
+
+# Expose the port
+EXPOSE 8080
+
+# --- CMD
+# The command just runs the server, since the model is already downloaded.
+CMD [ "/app/build/bin/llama-server", "-m", "/models/Phi-3-mini-4k-instruct-q4.gguf", "--host", "0.0.0.0", "--port", "8080", "--path", "./public"]
