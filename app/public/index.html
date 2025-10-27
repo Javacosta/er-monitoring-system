@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local AI Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        #chat-output::-webkit-scrollbar { width: 8px; }
+        #chat-output::-webkit-scrollbar-track { background: #f1f1f1; }
+        #chat-output::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        #chat-output::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-full">
+
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col">
+        <!-- Header -->
+        <div class="bg-gray-800 text-white p-4 rounded-t-lg flex items-center">
+            <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <h1 class="text-xl font-semibold">Chat with your Local AI</h1>
+        </div>
+
+        <!-- Chat Output -->
+        <div id="chat-output" class="flex-1 p-6 overflow-y-auto space-y-4">
+             <div class="flex items-start">
+                <div class="bg-indigo-500 text-white rounded-lg p-3 max-w-xs">
+                    <p class="text-sm">Hello! I'm running locally on your machine. What can I help you with today?</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+            <div class="flex items-center space-x-3">
+                <textarea id="prompt-input" class="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none" placeholder="Type your message here..." rows="1"></textarea>
+                <button id="send-button" class="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Send
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatOutput = document.getElementById('chat-output');
+        const promptInput = document.getElementById('prompt-input');
+        const sendButton = document.getElementById('send-button');
+        // The API URL is now a relative path, because this page is served from the same origin.
+        const apiUrl = '/completion';
+
+        promptInput.addEventListener('input', () => {
+            promptInput.style.height = 'auto';
+            promptInput.style.height = (promptInput.scrollHeight) + 'px';
+        });
+        
+           
+   	    // This is the prompt we will send to the API
+    	    const sendPrompt = async () => {
+            const prompt = promptInput.value.trim();
+            if (!prompt) return;
+
+            promptInput.value = '';
+            promptInput.disabled = true;
+            sendButton.disabled = true;
+            
+            appendMessage(prompt, 'user');
+
+            const loadingIndicator = appendMessage('...', 'bot');
+            
+            // --- This is your system prompt ---
+            const systemPrompt = `You are ER-Bot, an AI clinical monitoring assistant.
+	    Your sole purpose is to check patient vitals against established thresholds and generate a concise alert for clinical staff.
+	    You must be direct and use no conversational fluff.
+
+	    RULES:
+	    1.  Analyze the user's text to find all 5 vital signs.
+	    2.  Compare each vital to its threshold.
+	    3.  A vital is 'CRITICAL' if it is outside its threshold range.
+	    4.  The patient status is 'CRITICAL' if EVEN ONE vital is 'CRITICAL'.
+	    5.  The patient status is 'STABLE' if ALL vitals are within their thresholds.
+
+	    THRESHOLDS:
+	    * Temperature (F): 96.8 - 100.4
+	    * Heart Rate (bpm): 50 - 120
+	    * BP Systolic (mmHg): 90 - 140
+	    * BP Diastolic (mmHg): 60 - 90
+	    * Oxygen Saturation (%): 90 - 100
+
+	    OUTPUT FORMAT:
+	    * If CRITICAL: Respond with "CRITICAL. [Vital(s) out of range]. [Summary]."
+	    * If STABLE: Respond with "STABLE. All vitals normal."`;
+            // --- This is the Phi 3 Template ---
+            const apiPrompt = const apiPrompt = `<|system|>\n${systemPrompt}<|end|>\n<|user|>\n${prompt}<|end|>\n<|assistant|>\n`;            
+	    try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: apiPrompt,  // Use the new Phi-3 formatted prompt
+                        n_predict: 100,
+                        temperature: 0.2
+                    })
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const data = await response.json();
+                loadingIndicator.querySelector('p').textContent = data.content.trim();
+
+            } catch (error) {
+                console.error("API Error:", error);
+                loadingIndicator.querySelector('p').textContent = "Sorry, something went wrong. Check the console for details.";
+                loadingIndicator.classList.add('bg-red-500');
+            } finally {
+                promptInput.disabled = false;
+                sendButton.disabled = false;
+                promptInput.focus();
+                promptInput.style.height = 'auto';
+            }
+        };
+                
+        const appendMessage = (text, sender) => {
+            const messageWrapper = document.createElement('div');
+            const messageBubble = document.createElement('div');
+            const messageText = document.createElement('p');
+            
+            messageText.textContent = text;
+            messageText.className = 'text-sm';
+
+            if (sender === 'user') {
+                messageWrapper.className = 'flex items-start justify-end';
+                messageBubble.className = 'bg-gray-200 text-gray-800 rounded-lg p-3 max-w-xs';
+            } else {
+                messageWrapper.className = 'flex items-start';
+                messageBubble.className = 'bg-indigo-500 text-white rounded-lg p-3 max-w-xs';
+            }
+
+            messageBubble.appendChild(messageText);
+            messageWrapper.appendChild(messageBubble);
+            chatOutput.appendChild(messageWrapper);
+            chatOutput.scrollTop = chatOutput.scrollHeight;
+            return messageBubble;
+        };
+        
+        sendButton.addEventListener('click', sendPrompt);
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendPrompt();
+            }
+        });
+    </script>
+</body>
+</html>
+
