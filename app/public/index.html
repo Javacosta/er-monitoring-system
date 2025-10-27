@@ -93,7 +93,7 @@
 	    * If CRITICAL: Respond with "CRITICAL. [Vital(s) out of range]. [Summary]."
 	    * If STABLE: Respond with "STABLE. All vitals normal."`;
             // --- This is the Phi 3 Template ---
-            const apiPrompt = const apiPrompt = `<|system|>\n${systemPrompt}<|end|>\n<|user|>\n${prompt}<|end|>\n<|assistant|>\n`;            
+            const apiPrompt = `<|system|>\n${systemPrompt}<|end|>\n<|user|>\n${prompt}<|end|>\n<|assistant|>\n`;            
 	    try {
                 const response = await fetch(apiUrl, {
                     method: 'POST',
