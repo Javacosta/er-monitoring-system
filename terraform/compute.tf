@@ -30,7 +30,7 @@ resource "aws_security_group" "server_sg" {
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
-    cidr_blocks     = [var.vpc_cidr] # Only allows from inside your VPC
+    cidr_blocks     = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -38,7 +38,7 @@ resource "aws_security_group" "server_sg" {
     from_port       = 8080
     to_port         = 8080
     protocol        = "tcp"
-    cidr_blocks     = [var.vpc_cidr] # Only allows from inside your VPC
+    cidr_blocks     = ["0.0.0.0/0"] 
   }
 
   # Egress (Outbound) Rules
@@ -57,7 +57,8 @@ resource "aws_instance" "llama_server" {
   instance_type = "t2.micro" # Free tier eligible
 
   # Place it in the private subnet
-  subnet_id = aws_subnet.private.id # From network-core.tf
+  subnet_id = aws_subnet.public.id 
+  associate_public_ip_address = true
 
   # Attach the security group
   vpc_security_group_ids = [aws_security_group.server_sg.id]
