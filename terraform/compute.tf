@@ -54,9 +54,9 @@ resource "aws_security_group" "server_sg" {
 # Create the EC2 Instance
 resource "aws_instance" "llama_server" {
   ami           = data.aws_ami.amazon_linux.id
-  instance_type = "t2.micro" # Free tier eligible
+  instance_type = "c5.large" 
 
-  # Place it in the private subnet
+  # Place it in the public O subnet
   subnet_id = aws_subnet.public.id 
   associate_public_ip_address = true
 
